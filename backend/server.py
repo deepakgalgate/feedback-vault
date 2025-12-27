@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
@@ -12,7 +13,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 import bcrypt
 import jwt
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+# from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -32,7 +33,11 @@ EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
 
 # Security
 security = HTTPBearer()
-
+# lifespan
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     print("App shutting down...")
+#     client.close()
 # Create the main app
 app = FastAPI(title="FeedbackVault API", version="1.0.0")
 
@@ -718,175 +723,175 @@ async def search(q: str, category_id: Optional[str] = None, min_rating: Optional
 
 # ==================== AI INSIGHTS ROUTES ====================
 
-class AIInsightsResponse(BaseModel):
-    summary: str
-    key_strengths: List[str]
-    areas_for_improvement: List[str]
-    sentiment_score: float
-    recommendation_percentage: float
-    popular_tags: Dict[str, int]
-    insights: List[str]
+# class AIInsightsResponse(BaseModel):
+#     summary: str
+#     key_strengths: List[str]
+#     areas_for_improvement: List[str]
+#     sentiment_score: float
+#     recommendation_percentage: float
+#     popular_tags: Dict[str, int]
+#     insights: List[str]
 
-async def generate_ai_insights(reviews: List[dict], item_name: str) -> dict:
-    """Generate AI-powered insights from reviews using OpenAI"""
-    if not EMERGENT_LLM_KEY or not reviews:
-        return generate_fallback_insights(reviews, item_name)
+# async def generate_ai_insights(reviews: List[dict], item_name: str) -> dict:
+#     """Generate AI-powered insights from reviews using OpenAI"""
+#     if not EMERGENT_LLM_KEY or not reviews:
+#         return generate_fallback_insights(reviews, item_name)
     
-    try:
-        # Prepare review text for analysis
-        review_texts = []
-        for r in reviews[:20]:  # Limit to 20 reviews for context
-            text = f"Rating: {r['overall_rating']}/5"
-            if r.get('short_review'):
-                text += f" - {r['short_review']}"
-            if r.get('tags'):
-                text += f" [Tags: {', '.join(r['tags'])}]"
-            review_texts.append(text)
+#     try:
+#         # Prepare review text for analysis
+#         review_texts = []
+#         for r in reviews[:20]:  # Limit to 20 reviews for context
+#             text = f"Rating: {r['overall_rating']}/5"
+#             if r.get('short_review'):
+#                 text += f" - {r['short_review']}"
+#             if r.get('tags'):
+#                 text += f" [Tags: {', '.join(r['tags'])}]"
+#             review_texts.append(text)
         
-        reviews_content = "\n".join(review_texts)
+#         reviews_content = "\n".join(review_texts)
         
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"insights-{item_name}-{uuid.uuid4()}",
-            system_message="You are an expert at analyzing customer reviews and extracting actionable insights. Respond in JSON format only."
-        ).with_model("openai", "gpt-4o-mini")
+#         chat = LlmChat(
+#             api_key=EMERGENT_LLM_KEY,
+#             session_id=f"insights-{item_name}-{uuid.uuid4()}",
+#             system_message="You are an expert at analyzing customer reviews and extracting actionable insights. Respond in JSON format only."
+#         ).with_model("openai", "gpt-4o-mini")
         
-        prompt = f"""Analyze these customer reviews for "{item_name}" and provide insights in JSON format:
+#         prompt = f"""Analyze these customer reviews for "{item_name}" and provide insights in JSON format:
 
-Reviews:
-{reviews_content}
+# Reviews:
+# {reviews_content}
 
-Respond with ONLY valid JSON in this exact format:
-{{
-    "summary": "A 2-3 sentence summary of overall customer sentiment",
-    "key_strengths": ["strength1", "strength2", "strength3"],
-    "areas_for_improvement": ["area1", "area2"],
-    "insights": ["insight1 with percentage", "insight2 with percentage", "insight3"]
-}}"""
+# Respond with ONLY valid JSON in this exact format:
+# {{
+#     "summary": "A 2-3 sentence summary of overall customer sentiment",
+#     "key_strengths": ["strength1", "strength2", "strength3"],
+#     "areas_for_improvement": ["area1", "area2"],
+#     "insights": ["insight1 with percentage", "insight2 with percentage", "insight3"]
+# }}"""
 
-        user_message = UserMessage(text=prompt)
-        response = await chat.send_message(user_message)
+#         user_message = UserMessage(text=prompt)
+#         response = await chat.send_message(user_message)
         
-        # Parse JSON response
-        import json
-        # Clean response - find JSON in the response
-        response_text = response.strip()
-        if response_text.startswith("```json"):
-            response_text = response_text[7:]
-        if response_text.startswith("```"):
-            response_text = response_text[3:]
-        if response_text.endswith("```"):
-            response_text = response_text[:-3]
+#         # Parse JSON response
+#         import json
+#         # Clean response - find JSON in the response
+#         response_text = response.strip()
+#         if response_text.startswith("```json"):
+#             response_text = response_text[7:]
+#         if response_text.startswith("```"):
+#             response_text = response_text[3:]
+#         if response_text.endswith("```"):
+#             response_text = response_text[:-3]
         
-        ai_data = json.loads(response_text.strip())
+#         ai_data = json.loads(response_text.strip())
         
-        # Calculate metrics from reviews
-        total_reviews = len(reviews)
-        avg_rating = sum(r['overall_rating'] for r in reviews) / total_reviews if total_reviews > 0 else 0
-        recommend_count = sum(1 for r in reviews if 'would-recommend' in r.get('tags', []))
+#         # Calculate metrics from reviews
+#         total_reviews = len(reviews)
+#         avg_rating = sum(r['overall_rating'] for r in reviews) / total_reviews if total_reviews > 0 else 0
+#         recommend_count = sum(1 for r in reviews if 'would-recommend' in r.get('tags', []))
         
-        # Count tags
-        tag_counts = {}
-        for r in reviews:
-            for tag in r.get('tags', []):
-                tag_counts[tag] = tag_counts.get(tag, 0) + 1
+#         # Count tags
+#         tag_counts = {}
+#         for r in reviews:
+#             for tag in r.get('tags', []):
+#                 tag_counts[tag] = tag_counts.get(tag, 0) + 1
         
-        return {
-            "summary": ai_data.get("summary", ""),
-            "key_strengths": ai_data.get("key_strengths", [])[:5],
-            "areas_for_improvement": ai_data.get("areas_for_improvement", [])[:3],
-            "sentiment_score": round(avg_rating / 5 * 100, 1),
-            "recommendation_percentage": round((recommend_count / total_reviews) * 100, 1) if total_reviews > 0 else 0,
-            "popular_tags": dict(sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:8]),
-            "insights": ai_data.get("insights", [])[:5]
-        }
+#         return {
+#             "summary": ai_data.get("summary", ""),
+#             "key_strengths": ai_data.get("key_strengths", [])[:5],
+#             "areas_for_improvement": ai_data.get("areas_for_improvement", [])[:3],
+#             "sentiment_score": round(avg_rating / 5 * 100, 1),
+#             "recommendation_percentage": round((recommend_count / total_reviews) * 100, 1) if total_reviews > 0 else 0,
+#             "popular_tags": dict(sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:8]),
+#             "insights": ai_data.get("insights", [])[:5]
+#         }
         
-    except Exception as e:
-        logger.error(f"AI insights generation failed: {e}")
-        return generate_fallback_insights(reviews, item_name)
+#     except Exception as e:
+#         logger.error(f"AI insights generation failed: {e}")
+#         return generate_fallback_insights(reviews, item_name)
 
-def generate_fallback_insights(reviews: List[dict], item_name: str) -> dict:
-    """Generate basic insights without AI"""
-    total_reviews = len(reviews)
-    if total_reviews == 0:
-        return {
-            "summary": f"No reviews yet for {item_name}. Be the first to share your experience!",
-            "key_strengths": [],
-            "areas_for_improvement": [],
-            "sentiment_score": 0,
-            "recommendation_percentage": 0,
-            "popular_tags": {},
-            "insights": []
-        }
+# def generate_fallback_insights(reviews: List[dict], item_name: str) -> dict:
+#     """Generate basic insights without AI"""
+#     total_reviews = len(reviews)
+#     if total_reviews == 0:
+#         return {
+#             "summary": f"No reviews yet for {item_name}. Be the first to share your experience!",
+#             "key_strengths": [],
+#             "areas_for_improvement": [],
+#             "sentiment_score": 0,
+#             "recommendation_percentage": 0,
+#             "popular_tags": {},
+#             "insights": []
+#         }
     
-    avg_rating = sum(r['overall_rating'] for r in reviews) / total_reviews
-    recommend_count = sum(1 for r in reviews if 'would-recommend' in r.get('tags', []))
+#     avg_rating = sum(r['overall_rating'] for r in reviews) / total_reviews
+#     recommend_count = sum(1 for r in reviews if 'would-recommend' in r.get('tags', []))
     
-    # Count tags and ratings
-    tag_counts = {}
-    rating_dist = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
-    for r in reviews:
-        rating_dist[r['overall_rating']] = rating_dist.get(r['overall_rating'], 0) + 1
-        for tag in r.get('tags', []):
-            tag_counts[tag] = tag_counts.get(tag, 0) + 1
+#     # Count tags and ratings
+#     tag_counts = {}
+#     rating_dist = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+#     for r in reviews:
+#         rating_dist[r['overall_rating']] = rating_dist.get(r['overall_rating'], 0) + 1
+#         for tag in r.get('tags', []):
+#             tag_counts[tag] = tag_counts.get(tag, 0) + 1
     
-    # Generate insights based on data
-    insights = []
-    five_star_pct = round((rating_dist[5] / total_reviews) * 100, 1)
-    if five_star_pct > 50:
-        insights.append(f"{five_star_pct}% of reviewers gave 5 stars")
+#     # Generate insights based on data
+#     insights = []
+#     five_star_pct = round((rating_dist[5] / total_reviews) * 100, 1)
+#     if five_star_pct > 50:
+#         insights.append(f"{five_star_pct}% of reviewers gave 5 stars")
     
-    for tag, count in sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:3]:
-        pct = round((count / total_reviews) * 100, 1)
-        tag_display = tag.replace('-', ' ').title()
-        insights.append(f"{pct}% of reviewers mentioned '{tag_display}'")
+#     for tag, count in sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:3]:
+#         pct = round((count / total_reviews) * 100, 1)
+#         tag_display = tag.replace('-', ' ').title()
+#         insights.append(f"{pct}% of reviewers mentioned '{tag_display}'")
     
-    # Determine strengths based on common positive tags
-    positive_tags = ['fresh', 'authentic', 'worth-price', 'would-recommend', 'great-service', 'premium-quality']
-    strengths = [tag.replace('-', ' ').title() for tag in positive_tags if tag in tag_counts][:5]
+#     # Determine strengths based on common positive tags
+#     positive_tags = ['fresh', 'authentic', 'worth-price', 'would-recommend', 'great-service', 'premium-quality']
+#     strengths = [tag.replace('-', ' ').title() for tag in positive_tags if tag in tag_counts][:5]
     
-    # Determine areas for improvement (low-rated aspects)
-    improvements = []
-    if avg_rating < 4:
-        improvements.append("Overall consistency")
-    if rating_dist.get(1, 0) + rating_dist.get(2, 0) > total_reviews * 0.2:
-        improvements.append("Address negative feedback patterns")
+#     # Determine areas for improvement (low-rated aspects)
+#     improvements = []
+#     if avg_rating < 4:
+#         improvements.append("Overall consistency")
+#     if rating_dist.get(1, 0) + rating_dist.get(2, 0) > total_reviews * 0.2:
+#         improvements.append("Address negative feedback patterns")
     
-    sentiment = "excellent" if avg_rating >= 4.5 else "positive" if avg_rating >= 4 else "mixed" if avg_rating >= 3 else "needs attention"
+#     sentiment = "excellent" if avg_rating >= 4.5 else "positive" if avg_rating >= 4 else "mixed" if avg_rating >= 3 else "needs attention"
     
-    return {
-        "summary": f"{item_name} has {sentiment} feedback with an average rating of {avg_rating:.1f}/5 based on {total_reviews} reviews.",
-        "key_strengths": strengths,
-        "areas_for_improvement": improvements,
-        "sentiment_score": round(avg_rating / 5 * 100, 1),
-        "recommendation_percentage": round((recommend_count / total_reviews) * 100, 1) if total_reviews > 0 else 0,
-        "popular_tags": dict(sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:8]),
-        "insights": insights
-    }
+#     return {
+#         "summary": f"{item_name} has {sentiment} feedback with an average rating of {avg_rating:.1f}/5 based on {total_reviews} reviews.",
+#         "key_strengths": strengths,
+#         "areas_for_improvement": improvements,
+#         "sentiment_score": round(avg_rating / 5 * 100, 1),
+#         "recommendation_percentage": round((recommend_count / total_reviews) * 100, 1) if total_reviews > 0 else 0,
+#         "popular_tags": dict(sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:8]),
+#         "insights": insights
+#     }
 
-@api_router.get("/ai/insights/{item_id}", response_model=AIInsightsResponse)
-async def get_ai_insights(item_id: str):
-    """Get AI-powered insights for an item"""
-    item = await db.items.find_one({"id": item_id}, {"_id": 0})
-    if not item:
-        raise HTTPException(status_code=404, detail="Item not found")
+# @api_router.get("/ai/insights/{item_id}", response_model=AIInsightsResponse)
+# async def get_ai_insights(item_id: str):
+#     """Get AI-powered insights for an item"""
+#     item = await db.items.find_one({"id": item_id}, {"_id": 0})
+#     if not item:
+#         raise HTTPException(status_code=404, detail="Item not found")
     
-    reviews = await db.reviews.find({"item_id": item_id}, {"_id": 0}).to_list(100)
-    insights = await generate_ai_insights(reviews, item["name"])
+#     reviews = await db.reviews.find({"item_id": item_id}, {"_id": 0}).to_list(100)
+#     insights = await generate_ai_insights(reviews, item["name"])
     
-    return AIInsightsResponse(**insights)
+#     return AIInsightsResponse(**insights)
 
-@api_router.get("/ai/insights/variant/{variant_id}", response_model=AIInsightsResponse)
-async def get_variant_ai_insights(variant_id: str):
-    """Get AI-powered insights for a specific variant"""
-    variant = await db.variants.find_one({"id": variant_id}, {"_id": 0})
-    if not variant:
-        raise HTTPException(status_code=404, detail="Variant not found")
+# @api_router.get("/ai/insights/variant/{variant_id}", response_model=AIInsightsResponse)
+# async def get_variant_ai_insights(variant_id: str):
+#     """Get AI-powered insights for a specific variant"""
+#     variant = await db.variants.find_one({"id": variant_id}, {"_id": 0})
+#     if not variant:
+#         raise HTTPException(status_code=404, detail="Variant not found")
     
-    reviews = await db.reviews.find({"variant_id": variant_id}, {"_id": 0}).to_list(100)
-    insights = await generate_ai_insights(reviews, variant["name"])
+#     reviews = await db.reviews.find({"variant_id": variant_id}, {"_id": 0}).to_list(100)
+#     insights = await generate_ai_insights(reviews, variant["name"])
     
-    return AIInsightsResponse(**insights)
+#     return AIInsightsResponse(**insights)
 
 # ==================== BUSINESS ITEM MANAGEMENT ====================
 
